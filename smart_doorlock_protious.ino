@@ -2,9 +2,7 @@
 #include <Keypad.h>
 #include <Servo.h>
 
-
 LiquidCrystal lcd(A0, A1, A2, A3, A4, A5);
-
 
 const byte ROWS = 4;
 const byte COLS = 3;
@@ -19,15 +17,21 @@ byte colPins[COLS] = {5, 4, 3};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 Servo myServo;
-const int servoPin    = 10;
-const int redLedPin   = 11;
-const int greenLedPin = 12;
+const int servoPin     = 10;
+const int redLedPin    = 11;
+const int greenLedPin  = 12;
+const int pirPin       = 2;   
 
 String correctPassword = "87654";
 String inputPassword = "";
 
-void setup() {
 
+bool systemActive = false;
+unsigned long lastActivityTime = 0;
+const unsigned long idleTimeout = 10000; 
+
+void setup() {
+  pinMode(pirPin, INPUT);
   myServo.write(0);
   myServo.attach(servoPin);
 
@@ -36,29 +40,54 @@ void setup() {
   digitalWrite(redLedPin, LOW);
   digitalWrite(greenLedPin, LOW);
 
-
   lcd.begin(16, 2);
   lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Smart Door Lock");
-  delay(2000);
-
-  showEnterPassword();
+  lcd.noDisplay(); 
+  systemActive = false;
 }
 
 void loop() {
+  int pirState = digitalRead(pirPin);
+
+  
+  if (!systemActive) {
+    if (pirState == HIGH) {
+      systemActive = true;
+      lcd.display(); 
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Welcome!");
+      delay(1500);
+      showEnterPassword();
+      lastActivityTime = millis();
+    }
+    return; 
+  }
+
+  
+  if (systemActive && (millis() - lastActivityTime > idleTimeout)) {
+    lcd.clear();
+    lcd.noDisplay(); 
+    digitalWrite(redLedPin, LOW);
+    digitalWrite(greenLedPin, LOW);
+    inputPassword = "";
+    systemActive = false; 
+    return;
+  }
+
+ 
   char key = keypad.getKey();
 
   if (key) {
+    lastActivityTime = millis(); 
+
     if (key == '#') {
-    
       if (inputPassword.length() > 0) {
         inputPassword.remove(inputPassword.length() - 1);
         showEnterPassword();
       }
     }
     else if (key == '*') {
-
       if (inputPassword == correctPassword) {
         showMessage("Status:", "Access Granted!");
         digitalWrite(greenLedPin, HIGH);
@@ -78,10 +107,12 @@ void loop() {
         digitalWrite(redLedPin, LOW);
       }
       inputPassword = "";
+      
+      
+      lastActivityTime = millis(); 
       showEnterPassword();
     }
     else {
-      
       if (inputPassword.length() < 6) {
         inputPassword += key;
         showEnterPassword();
@@ -90,7 +121,6 @@ void loop() {
   }
 }
 
-
 void showMessage(String line1, String line2) {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -98,7 +128,6 @@ void showMessage(String line1, String line2) {
   lcd.setCursor(0, 1);
   lcd.print(line2);
 }
-
 
 void showEnterPassword() {
   lcd.clear();
