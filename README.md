@@ -45,4 +45,3 @@ A password-based door lock system built with **Arduino Uno** and simulated in **
 2. Double-click the Arduino and load the compiled `.hex` file.
 3. Run the simulation and use the keypad.
 
-## 📁 Project Structure
