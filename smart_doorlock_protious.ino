@@ -2,6 +2,7 @@
 #include <Keypad.h>
 #include <Servo.h>
 
+
 LiquidCrystal lcd(A0, A1, A2, A3, A4, A5);
 
 const byte ROWS = 4;
@@ -21,17 +22,21 @@ const int servoPin     = 10;
 const int redLedPin    = 11;
 const int greenLedPin  = 12;
 const int pirPin       = 2;   
+const int buzzerPin    = 13;  
 
 String correctPassword = "87654";
 String inputPassword = "";
 
-
 bool systemActive = false;
 unsigned long lastActivityTime = 0;
 const unsigned long idleTimeout = 10000; 
+int wrongAttemptCount = 0; 
 
 void setup() {
   pinMode(pirPin, INPUT);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
+
   myServo.write(0);
   myServo.attach(servoPin);
 
@@ -49,7 +54,6 @@ void setup() {
 void loop() {
   int pirState = digitalRead(pirPin);
 
-  
   if (!systemActive) {
     if (pirState == HIGH) {
       systemActive = true;
@@ -59,23 +63,22 @@ void loop() {
       lcd.print("Welcome!");
       delay(1500);
       showEnterPassword();
-      lastActivityTime = millis();
+      lastActivityTime = millis(); 
     }
     return; 
   }
 
-  
   if (systemActive && (millis() - lastActivityTime > idleTimeout)) {
     lcd.clear();
     lcd.noDisplay(); 
     digitalWrite(redLedPin, LOW);
     digitalWrite(greenLedPin, LOW);
+    digitalWrite(buzzerPin, LOW);
     inputPassword = "";
     systemActive = false; 
     return;
   }
 
- 
   char key = keypad.getKey();
 
   if (key) {
@@ -92,6 +95,10 @@ void loop() {
         showMessage("Status:", "Access Granted!");
         digitalWrite(greenLedPin, HIGH);
         digitalWrite(redLedPin, LOW);
+        digitalWrite(buzzerPin, LOW);
+
+       
+        wrongAttemptCount = 0; 
 
         myServo.write(90); 
         delay(4000);
@@ -100,15 +107,31 @@ void loop() {
         digitalWrite(greenLedPin, LOW);
       }
       else {
-        showMessage("Status:", "Wrong Password!");
+     
+        wrongAttemptCount++;
         digitalWrite(redLedPin, HIGH);
         digitalWrite(greenLedPin, LOW);
-        delay(2000);
-        digitalWrite(redLedPin, LOW);
+
+        if (wrongAttemptCount >= 3) {
+          showMessage("Alarm Active!", "Too many wrongs!");
+          while (true) { 
+            digitalWrite(buzzerPin, HIGH);
+            delay(200);
+            digitalWrite(buzzerPin, LOW);
+            delay(200);
+          }
+        } else {
+      
+          digitalWrite(buzzerPin, HIGH);
+          delay(500);
+          digitalWrite(buzzerPin, LOW);
+
+          showMessage("Status:", "Wrong Password!");
+          delay(2000);
+          digitalWrite(redLedPin, LOW);
+        }
       }
       inputPassword = "";
-      
-      
       lastActivityTime = millis(); 
       showEnterPassword();
     }
